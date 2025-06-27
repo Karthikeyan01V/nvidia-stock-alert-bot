@@ -1,11 +1,12 @@
 import yfinance as yf
-from forex_python.converter import CurrencyRates
+from forex_python.converter import CurrencyRates, RatesNotAvailableError
 from twilio.rest import Client
 import smtplib
 from email.mime.text import MIMEText
 from datetime import datetime
 import json
 import os
+import time
 
 # --- CONFIGURATION ---
 
@@ -33,8 +34,19 @@ def get_nvidia_stock_price():
 
 def convert_usd_to_inr(usd_amount):
     c = CurrencyRates()
-    inr = c.convert('USD', 'INR', usd_amount)
-    return round(inr, 2)
+    retries = 3
+    for attempt in range(retries):
+        try:
+            inr = c.convert('USD', 'INR', usd_amount)
+            return round(inr, 2)
+        except RatesNotAvailableError:
+            print(f"⚠️ Attempt {attempt+1}: Currency Rates Source Not Ready. Retrying...")
+            time.sleep(2)
+        except Exception as e:
+            print(f"❌ Unexpected error during currency conversion: {e}")
+            break
+    print("❗ Fallback: Unable to fetch INR rate. Returning None.")
+    return None
 
 def send_whatsapp_message(body):
     client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
@@ -64,7 +76,6 @@ def load_last_price():
             data = json.load(f)
             return data.get("last_price")
     else:
-        # Create the file with a dummy value
         with open(PRICE_FILE, 'w') as f:
             json.dump({"last_price": 0}, f)
         return None
@@ -83,10 +94,15 @@ def main():
     current_price_usd = get_nvidia_stock_price()
     current_price_inr = convert_usd_to_inr(current_price_usd)
 
-    # Previous price (from JSON file)
+    # Fallback if INR is not available
+    if current_price_inr is None:
+        inr_display = "❌ Not Available"
+    else:
+        inr_display = f"₹{current_price_inr}"
+
+    # Previous price
     last_price_usd = load_last_price()
 
-    # Calculate change
     if last_price_usd is None:
         direction_icon = "ℹ️"
         direction = "Initial Check"
@@ -102,7 +118,7 @@ def main():
 
 Stock: NVDA
 USD: ${current_price_usd}
-INR: ₹{current_price_inr}
+INR: {inr_display}
 Change: {direction_icon} {percent_change}
 """
     send_whatsapp_message(whatsapp_message)
@@ -123,7 +139,7 @@ Change: {direction_icon} {percent_change}
       <tr>
         <td>NVDA</td>
         <td>${current_price_usd}</td>
-        <td>₹{current_price_inr}</td>
+        <td>{inr_display}</td>
         <td>{direction_icon} {percent_change}</td>
       </tr>
     </table>
@@ -132,10 +148,9 @@ Change: {direction_icon} {percent_change}
     """
     send_email(subject, html_body)
 
-    # Save current price to JSON
+    # Save price
     save_last_price(current_price_usd)
 
 # --- EXECUTE ---
-
 if __name__ == "__main__":
     main()
