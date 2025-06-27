@@ -42,7 +42,7 @@ Automatically tracks NVIDIA (NVDA) stock price every 3 hours and sends personali
 
 | Stock | USD Price | INR Price | Last Change |
 |-------|-----------|-----------|--------------|
-| NVDA  | ![USD](https://img.shields.io/badge/dynamic/json?color=blue&label=USD&query=last_price&url=https://raw.githubusercontent.com/Karthikeyan01V/nvdia-stock-alert-bot/main/last_price.json) | Auto-calculated | % change in email |
+| NVDA  | ![USD](https://img.shields.io/badge/dynamic/json?color=blue&label=USD&query=last_price&url=https://raw.githubusercontent.com/Karthikeyan01V/nvdia-stock-alert-bot/blob/main/last_price.json) | Auto-calculated | % change in email |
 
 ---
 
